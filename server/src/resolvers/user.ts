@@ -1,3 +1,4 @@
+import { COOKIE_NAME } from "./../constants";
 import { User } from "../entities/User";
 import { MyContext } from "../types";
 import {
@@ -180,5 +181,24 @@ export class UserResolver {
     return {
       user,
     };
+  }
+
+  @Mutation(() => Boolean)
+  logout(@Ctx() { req, res }: MyContext) {
+    // Remove the session from redis
+    return new Promise((resolve) =>
+      req.session.destroy((err) => {
+        // Cookie name that we set elsewhere
+        res.clearCookie(COOKIE_NAME);
+
+        if (err) {
+          console.log(err);
+          resolve(false);
+          return;
+        }
+
+        resolve(true);
+      })
+    );
   }
 }

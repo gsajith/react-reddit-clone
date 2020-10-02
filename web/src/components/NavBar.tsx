@@ -1,12 +1,24 @@
 import { Box, Button, Flex, Link } from "@chakra-ui/core";
 import React from "react";
 import NextLink from "next/link";
-import { useMeQuery } from "../generated/graphql";
+import { useLogoutMutation, useMeQuery } from "../generated/graphql";
+import { isServer } from "../utils/isServer";
 
 interface NavBarProps {}
 
 const NavBar: React.FC<NavBarProps> = ({}) => {
-  const [{ data, fetching }] = useMeQuery();
+  const [{ fetching: logoutFetching }, logout] = useLogoutMutation();
+
+  // Use wherever we want to use the current user.
+  // HOWEVER, since Navbar is in Index and Index is SSR'd
+  // ... this hits the server whenever navbar is loaded
+  // ... but the server doesn't have a user cookie so
+  // this always returns null. We want to skip this.
+  // const [{ data, fetching }] = useMeQuery();
+
+  const [{ data, fetching }] = useMeQuery({
+    pause: isServer(), // Don't run when we're on the server
+  });
 
   let body = null;
 
@@ -33,7 +45,14 @@ const NavBar: React.FC<NavBarProps> = ({}) => {
     body = (
       <Flex>
         <Box mr={2}>{data.me.username}</Box>
-        <Button variant="link">Logout</Button>
+        <Button
+          onClick={() => {
+            logout();
+          }}
+          isLoading={logoutFetching}
+          variant="link">
+          Logout
+        </Button>
       </Flex>
     );
   }

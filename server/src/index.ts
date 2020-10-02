@@ -10,7 +10,7 @@ import session from "express-session";
 import { ApolloServer } from "apollo-server-express";
 import redis from "redis";
 import connectRedis from "connect-redis";
-import { __prod__ } from "./constants";
+import { COOKIE_NAME, __prod__ } from "./constants";
 import cors from "cors";
 // import { Post } from './entities/Post';
 
@@ -42,7 +42,7 @@ const main = async () => {
   // Use redis middleware
   app.use(
     session({
-      name: "qid",
+      name: COOKIE_NAME,
       store: new RedisStore({
         client: redisClient,
         // disableTTL: true, // Keep sessions forever

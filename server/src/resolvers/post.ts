@@ -1,56 +1,67 @@
-import { MyContext } from "../types";
+import { isAuth } from './../middleware/isAuth';
 import { Post } from "../entities/Post";
-import { Resolver, Query, Ctx, Arg, Mutation } from "type-graphql";
+import {
+  Resolver,
+  Query,
+  Arg,
+  Mutation,
+  InputType,
+  Field,
+  Ctx,, UseMiddleware
+} from "type-graphql";
+import { MyContext } from "src/types";
+
+@InputType()
+class PostInput {
+  @Field()
+  title: string;
+
+  @Field()
+  text: string;
+}
 
 @Resolver()
 export class PostResolver {
   @Query(() => [Post])
-  async posts(@Ctx() { em }: MyContext): Promise<Post[]> {
-    return em.find(Post, {});
+  async posts(): Promise<Post[]> {
+    return Post.find();
   }
 
   @Query(() => Post, { nullable: true })
-  post(@Arg("id") id: number, @Ctx() { em }: MyContext): Promise<Post | null> {
-    return em.findOne(Post, { id });
+  post(@Arg("id") id: number): Promise<Post | undefined> {
+    return Post.findOne(id);
   }
 
   @Mutation(() => Post)
+  @UseMiddleware(isAuth) // Does authentication check
   async createPost(
-    @Arg("title") title: string,
-    @Ctx() { em }: MyContext
+    @Ctx() { req }: MyContext,
+    @Arg("input") input: PostInput
   ): Promise<Post | null> {
-    const post = em.create(Post, { title });
-    await em.persistAndFlush(post);
-    return post;
+    return Post.create({
+      ...input,
+      creatorId: req.session.userId,
+    }).save();
   }
 
   @Mutation(() => Post)
   async updatePost(
     @Arg("title", () => String, { nullable: true }) title: string,
-    @Arg("id") id: number,
-    @Ctx() { em }: MyContext
+    @Arg("id") id: number
   ): Promise<Post | null> {
-    const post = await em.findOne(Post, { id });
+    const post = await Post.findOne(id);
     if (!post) {
       return null;
     }
     if (typeof title !== "undefined") {
-      post.title = title;
-      await em.persistAndFlush(post);
+      Post.update({ id }, { title });
     }
     return post;
   }
 
   @Mutation(() => Boolean)
-  async deletePost(
-    @Arg("id") id: number,
-    @Ctx() { em }: MyContext
-  ): Promise<boolean> {
-    try {
-      await em.nativeDelete(Post, { id });
-    } catch {
-      return false;
-    }
+  async deletePost(@Arg("id") id: number): Promise<boolean> {
+    await Post.delete(id);
     return true;
   }
 }

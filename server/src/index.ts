@@ -4,23 +4,26 @@ import { buildSchema } from "type-graphql";
 import { PostResolver } from "./resolvers/post";
 import { HelloResolver } from "./resolvers/hello";
 import { UserResolver } from "./resolvers/user";
-import { MikroORM } from "@mikro-orm/core";
-import microConfig from "./mikro-orm.config";
+import { createConnection } from "typeorm";
 import session from "express-session";
 import { ApolloServer } from "apollo-server-express";
-import redis from "redis";
+import Redis from "ioredis";
 import connectRedis from "connect-redis";
 import { COOKIE_NAME, __prod__ } from "./constants";
 import cors from "cors";
-// import { Post } from './entities/Post';
+import { Post } from "./entities/Post";
+import { User } from "./entities/User";
 
 const main = async () => {
-  // Set up MikroORM, makes postgres operations easier
-  const orm = await MikroORM.init(microConfig);
-
-  // Run migrations if any - matched to a pg table of past migrations so won't re-run
-  // npm run create:migrations
-  await orm.getMigrator().up();
+  const conn = await createConnection({
+    type: "postgres",
+    database: "gifts",
+    username: "postgres",
+    password: "postgres",
+    logging: true,
+    synchronize: true, // Will create the tables automatically for you and don't need to run a migration
+    entities: [Post, User],
+  });
 
   const app = express();
 
@@ -28,7 +31,7 @@ const main = async () => {
   // Somewhere between MongoDB (no-sql database) and memcached (caching system)
   // https://gist.github.com/tomysmile/1b8a321e7c58499ef9f9441b2faa0aa8
   const RedisStore = connectRedis(session);
-  const redisClient = redis.createClient();
+  const redis = new Redis();
 
   // Sets CORS to apply on all routs
   app.use(
@@ -44,7 +47,7 @@ const main = async () => {
     session({
       name: COOKIE_NAME,
       store: new RedisStore({
-        client: redisClient,
+        client: redis,
         // disableTTL: true, // Keep sessions forever
         // disableTouch: true, // Don't touch every time user pings redis
       }),
@@ -66,7 +69,7 @@ const main = async () => {
       resolvers: [HelloResolver, PostResolver, UserResolver],
       validate: false, // I guess we don't like the default validation?
     }),
-    context: ({ req, res }) => ({ em: orm.em, req, res }),
+    context: ({ req, res }) => ({ req, res, redis }),
   });
 
   apolloServer.applyMiddleware({

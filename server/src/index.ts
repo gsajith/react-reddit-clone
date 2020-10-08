@@ -13,6 +13,7 @@ import { COOKIE_NAME, __prod__ } from "./constants";
 import cors from "cors";
 import { Post } from "./entities/Post";
 import { User } from "./entities/User";
+import { Upvote } from "./entities/Upvote";
 import path from "path";
 
 const main = async () => {
@@ -24,7 +25,7 @@ const main = async () => {
     logging: true,
     synchronize: true, // Will create the tables automatically for you and don't need to run a migration
     migrations: [path.join(__dirname, "./migrations/*")],
-    entities: [Post, User],
+    entities: [Post, User, Upvote],
   });
 
   await conn.runMigrations();

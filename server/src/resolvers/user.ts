@@ -1,21 +1,23 @@
-import { validateRegister } from "./../utils/validateRegister";
-import { COOKIE_NAME, FORGOT_PASSWORD_PREFIX } from "./../constants";
-import { User } from "../entities/User";
-import { MyContext } from "../types";
+import argon2 from "argon2";
 import {
-  Resolver,
-  Mutation,
   Arg,
-  Field,
   Ctx,
+  Field,
+  FieldResolver,
+  Mutation,
   ObjectType,
   Query,
+  Resolver,
+  Root,
 } from "type-graphql";
-import argon2 from "argon2";
-import { UsernamePasswordInput } from "./UsernamePasswordInput";
-import { v4 } from "uuid";
-import { sendEmail } from "../utils/sendEmail";
 import { getConnection } from "typeorm";
+import { v4 } from "uuid";
+import { User } from "../entities/User";
+import { MyContext } from "../types";
+import { sendEmail } from "../utils/sendEmail";
+import { COOKIE_NAME, FORGOT_PASSWORD_PREFIX } from "./../constants";
+import { validateRegister } from "./../utils/validateRegister";
+import { UsernamePasswordInput } from "./UsernamePasswordInput";
 
 @ObjectType()
 class FieldError {
@@ -35,8 +37,19 @@ class UserResponse {
   user?: User;
 }
 
-@Resolver()
+@Resolver(User)
 export class UserResolver {
+  @FieldResolver(() => String)
+  email(@Root() user: User, @Ctx() { req }: MyContext) {
+    // This is the current user and it's okay to show them their own email
+    if (req.session.userId === user.id) {
+      return user.email;
+    }
+
+    // The current user wants to see someone else's email
+    return "";
+  }
+
   @Query(() => User, { nullable: true })
   me(@Ctx() { req }: MyContext) {
     if (!req.session.userId) {
